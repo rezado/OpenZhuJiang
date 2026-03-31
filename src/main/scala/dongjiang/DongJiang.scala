@@ -25,6 +25,7 @@ class DJConfigIO(implicit p: Parameters) extends DJBundle {
     val ci       = Input(UInt(ciBits.W))
     val closeLLC = Input(Bool())
     val bankId   = Input(UInt(bankBits.W))
+    val l3Sets   = Input(UInt(64.W))
 }
 
 class DongJiang(lanNode: Node, bbnNode: Option[Node] = None)(implicit p: Parameters) extends DJModule with ImplicitClock with ImplicitReset {

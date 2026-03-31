@@ -54,6 +54,13 @@ trait HasAddr extends DJBundle { this: DJBundle =>
         }
         def catPoS(bank: UInt, tag: UInt, set: UInt, dirBank: UInt, offset: UInt = 0.U(offsetBits.W)) = catByX(bank, tag, posTagBits, set, posSetBits, dirBank, offset)
         def catLLC(bank: UInt, tag: UInt, set: UInt, dirBank: UInt, offset: UInt = 0.U(offsetBits.W)) = catByX(bank, tag, llcTagBits, set, llcSetBits, dirBank, offset)
+        def catDynLLC(bank: UInt, extTag: UInt, dynSet: UInt, dirBank: UInt, cfgSets: UInt, offset: UInt = 0.U(offsetBits.W)) = {
+            require(extTag.getWidth == llcTagBits + llcSetBits, s"extTagBits: ${extTag.getWidth} =/= ${llcTagBits + llcSetBits}")
+            require(dynSet.getWidth == llcSetBits, s"dynSetBits: ${dynSet.getWidth} =/= ${llcSetBits}")
+            val tag = extTag(llcTagBits + llcSetBits - 1, llcSetBits)
+            val fullSet = ((((extTag(llcSetBits - 1, 0) << dynLlcSetBits(cfgSets))(llcSetBits - 1, 0)) | dynSet)(llcSetBits - 1, 0))
+            catLLC(bank, tag, fullSet, dirBank, offset)
+        }
         def catSF(bank: UInt, tag: UInt, set: UInt, dirBank: UInt, offset: UInt = 0.U(offsetBits.W)) = catByX(bank, tag, sfTagBits, set, sfSetBits, dirBank, offset)
 
         def cat(bank: UInt, tag: UInt, set: UInt, dirBank: UInt): Unit = if (addrType == "llc") catLLC(bank, tag, set, dirBank) else catSF(bank, tag, set, dirBank)

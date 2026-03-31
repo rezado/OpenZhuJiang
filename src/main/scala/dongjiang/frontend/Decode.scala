@@ -102,7 +102,7 @@ class Decode(implicit p: Parameters) extends DJModule {
     io.cmtTask_s3.bits.decList     := decList_s3
     io.cmtTask_s3.bits.task        := taskCode_s3
     io.cmtTask_s3.bits.cmt         := Mux(taskCode_s3.isValid, 0.U.asTypeOf(new CommitCode), cmtCode_s3)
-    io.cmtTask_s3.bits.ds.set(taskReg_s3.addr, respDir_s3.llc.way)
+    io.cmtTask_s3.bits.ds.set(taskReg_s3.addr, respDir_s3.llc.way, io.config.l3Sets)
     HardwareAssertion.withEn(taskCode_s3.isValid | cmtCode_s3.isValid, validReg_s3)
     HardwareAssertion.withEn(respDir_s3.sf.metaIsVal, validReg_s3 & taskCode_s3.snoop)
 
@@ -129,7 +129,7 @@ class Decode(implicit p: Parameters) extends DJModule {
     io.fastData_s3.bits.dataOp.read := true.B
     io.fastData_s3.bits.dataOp.send := true.B
     io.fastData_s3.bits.dataVec     := taskReg_s3.chi.dataVec
-    io.fastData_s3.bits.ds.set(taskReg_s3.addr, respDir_s3.llc.way)
+    io.fastData_s3.bits.ds.set(taskReg_s3.addr, respDir_s3.llc.way, io.config.l3Sets)
     HardwareAssertion.withEn(cmtCode_s3.dataOp.isValid, io.fastData_s3.valid)
 
     val cleanUnuseDB_s3 = validReg_s3 & taskReg_s3.alr.reqDB & !taskReg_s3.chi.isFullSize & !(respDir_s3.sf.hit | respDir_s3.llc.hit)

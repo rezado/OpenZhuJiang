@@ -189,6 +189,17 @@ trait HasDJParam extends HasParseZJParam {
     lazy val dsBank_ds_hi = dsBankBits - 1
     lazy val dsBank_ds_lo = 0
 
+    lazy val staticGlobalL3Sets = p(ZJParametersKey).cacheSizeInB / djparam.CacheLine / p(ZJParametersKey).cacheWays
+
+    def dynGlobalL3Sets(cfgSets: UInt): UInt = cfgSets
+    def dynLlcSetsPerDir(cfgSets: UInt): UInt = (cfgSets >> log2Ceil(djparam.nrDirBank)).asUInt
+    def dynLlcSetBits(cfgSets: UInt): UInt = Log2(dynLlcSetsPerDir(cfgSets))
+
+    def dynSetMask(set: UInt, dynBits: UInt, width: Int): UInt = {
+        val mask = ((1.U((width + 1).W) << dynBits) - 1.U)(width - 1, 0)
+        set(width - 1, 0) & mask
+    }
+
     def getCI(a: UInt) = a(ci_hi, ci_lo)
     def getUseAddr(a: UInt) = if (hnxBankOff == offsetBits) a(useAddr_hi, bankId_hi + 1) else Cat(a(useAddr_hi, bankId_hi + 1), a(bankId_lo - 1, useAddr_lo))
     def getBankId(a: UInt) = a(bankId_hi, bankId_lo)
@@ -197,6 +208,15 @@ trait HasDJParam extends HasParseZJParam {
     def getDirBank(a: UInt) = getUseAddr(a)(dirBank_ua_hi, dirBank_ua_lo)
     def getLlcTag(a: UInt) = getUseAddr(a)(llcTag_ua_hi, llcTag_ua_lo)
     def getLlcSet(a: UInt) = getUseAddr(a)(llcSet_ua_hi, llcSet_ua_lo)
+    def getDynLlcSet(a: UInt, cfgSets: UInt): UInt = dynSetMask(getLlcSet(a), dynLlcSetBits(cfgSets), llcSetBits)
+
+    def extendDynLlcTag(tag: UInt, set: UInt, cfgSets: UInt): UInt = {
+        val extTag = Wire(UInt((llcTagBits + llcSetBits).W))
+        extTag := Cat(tag, set >> dynLlcSetBits(cfgSets))
+        extTag
+    }
+
+    def getDynLlcExtTag(a: UInt, cfgSets: UInt): UInt = extendDynLlcTag(getLlcTag(a), getLlcSet(a), cfgSets)
 
     def getSfTag(a: UInt) = getUseAddr(a)(sfTag_ua_hi, sfTag_ua_lo)
     def getSfSet(a: UInt) = getUseAddr(a)(sfSet_ua_hi, sfSet_ua_lo)

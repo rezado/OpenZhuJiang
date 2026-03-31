@@ -13,6 +13,7 @@ trait HasDirParam extends DJBundle { this: DJBundle =>
     def sets: Int = if (paramType == "llc") llcSets else sfSets
     def ways: Int = if (paramType == "llc") djparam.llcWays else djparam.sfWays
     def tagBits: Int = if (paramType == "llc") llcTagBits else sfTagBits
+    def storedTagBits: Int = if (paramType == "llc") llcTagBits + llcSetBits else sfTagBits
     def setBits: Int = if (paramType == "llc") llcSetBits else sfSetBits
     def nrMetas: Int = if (paramType == "llc") 1 else nrSfMetas
     def wayBits: Int = log2Ceil(ways)

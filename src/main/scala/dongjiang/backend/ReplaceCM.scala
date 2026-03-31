@@ -189,7 +189,7 @@ class ReplaceEntry(implicit p: Parameters) extends DJModule {
 
     when(llcRespHit) {
         next.repl.toLan := io.respDir.llc.bits.Addr.isToLAN(io.config.ci)
-        next.ds.set(io.respDir.llc.bits.addr, io.respDir.llc.bits.way)
+        next.ds.set(io.respDir.llc.bits.addr, io.respDir.llc.bits.way, io.config.l3Sets)
     }
 
     when(sfRespHit) {

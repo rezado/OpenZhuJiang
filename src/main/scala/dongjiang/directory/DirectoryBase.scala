@@ -86,7 +86,7 @@ class DirectoryBase(dirType: String, powerCtl: Boolean)(implicit p: Parameters) 
 
     val tagArray = Module(
         new SinglePortSramTemplate(
-            gen = UInt(param.tagBits.W),
+            gen = UInt(param.storedTagBits.W),
             set = param.sets,
             way = param.ways,
             shouldReset = false,
@@ -172,7 +172,7 @@ class DirectoryBase(dirType: String, powerCtl: Boolean)(implicit p: Parameters) 
             override def addrType: String = dirType
         })
     }))
-    val reqTag_d3     = Wire(UInt(param.tagBits.W)); dontTouch(reqTag_d3)
+    val reqTag_d3     = Wire(UInt(param.storedTagBits.W)); dontTouch(reqTag_d3)
     val reqSet_d3     = Wire(UInt(param.setBits.W)); dontTouch(reqSet_d3)
     val tagHitVec_d3  = Wire(Vec(param.ways, Bool())); dontTouch(tagHitVec_d3)
     val metaValVec_d3 = Wire(Vec(param.ways, Bool())); dontTouch(metaValVec_d3)
@@ -194,7 +194,10 @@ class DirectoryBase(dirType: String, powerCtl: Boolean)(implicit p: Parameters) 
     val read_d0     = io.read.fire
     val repl_d0     = shiftReg.updTagMeta_d4
 
-    val reqSet_d0 = Mux(repl_d0, req_d4.Addr.set, Mux(io.write.valid, io.write.bits.Addr.set, io.read.bits.Addr.set))
+    private def reqSet(addr: UInt): UInt = if (dirType == "llc") getDynLlcSet(addr, io.config.l3Sets) else getSfSet(addr)
+    private def reqTag(addr: UInt): UInt = if (dirType == "llc") getDynLlcExtTag(addr, io.config.l3Sets) else getSfTag(addr)
+
+    val reqSet_d0 = Mux(repl_d0, reqSet(req_d4.addr), Mux(io.write.valid, reqSet(io.write.bits.addr), reqSet(io.read.bits.addr)))
 
     val wriMask_d0    = Mux(repl_d0, selWayOHReg_d4, io.write.bits.wayOH)
     val wriMetaVec_d0 = Mux(repl_d0, req_d4.metaVec, io.write.bits.metaVec)
@@ -211,7 +214,7 @@ class DirectoryBase(dirType: String, powerCtl: Boolean)(implicit p: Parameters) 
     tagArray.io.req.bits.addr     := reqSet_d0
     tagArray.io.req.bits.write    := repl_d0
     tagArray.io.req.bits.mask.get := selWayOHReg_d4
-    tagArray.io.req.bits.data.foreach(_ := req_d4.Addr.tag)
+    tagArray.io.req.bits.data.foreach(_ := reqTag(req_d4.addr))
     HardwareAssertion.withEn(tagArray.io.req.ready, tagArray.io.req.valid)
     HardwareAssertion.withEn(tagArray.io.req.bits.mask.get =/= 0.U, tagArray.io.req.valid & tagArray.io.req.bits.write)
 
@@ -227,16 +230,16 @@ class DirectoryBase(dirType: String, powerCtl: Boolean)(implicit p: Parameters) 
     HardwareAssertion.withEn(tagArray.io.req.ready, shiftReg.updTagMeta_d4)
 
     replArray.io.rreq.valid := (writeHit_d0 | wriNoHit_d0 | read_d0) & resetDoneReg
-    replArray.io.rreq.bits  := Mux(io.write.valid, io.write.bits.Addr.set, io.read.bits.Addr.set)
+    replArray.io.rreq.bits  := Mux(io.write.valid, reqSet(io.write.bits.addr), reqSet(io.read.bits.addr))
 
     replArray.io.wreq.valid        := shiftReg.wriUpdRepl_d4 | shiftReg.updTagMeta_d4 | (shiftReg.outDirResp_d4 & readHitReg_d4)
-    replArray.io.wreq.bits.addr    := req_d4.Addr.set
+    replArray.io.wreq.bits.addr    := reqSet(req_d4.addr)
     replArray.io.wreq.bits.data(0) := newReplMesReg_d4
     HardwareAssertion.withEn(replArray.io.rreq.ready, replArray.io.rreq.valid)
     HardwareAssertion.withEn(replArray.io.wreq.ready, replArray.io.wreq.valid)
 
-    val replSetMatch_d1_d4 = req_d4.Addr.set === reqSftReg(D1).Addr.set & replArray.io.wreq.fire
-    val replSetMatch_d2_d4 = req_d4.Addr.set === reqSftReg(D2).Addr.set & replArray.io.wreq.fire
+    val replSetMatch_d1_d4 = reqSet(req_d4.addr) === reqSet(reqSftReg(D1).addr) & replArray.io.wreq.fire
+    val replSetMatch_d2_d4 = reqSet(req_d4.addr) === reqSet(reqSftReg(D2).addr) & replArray.io.wreq.fire
     replMes_d2 := PriorityMux(
         Seq(
             replSetMatch_d2_d4          -> newReplMesReg_d4,
@@ -247,20 +250,23 @@ class DirectoryBase(dirType: String, powerCtl: Boolean)(implicit p: Parameters) 
     val replRespNeedVal = shiftReg.read(D2) | (shiftReg.write(D2) & !shiftReg.repl(D2))
     HAssert(!(replRespNeedVal ^ replArray.io.rresp.valid))
 
-    useWayVec_d2 := lockTable(reqSftReg(D2).hnIdx.pos.set).map(lock => Mux(lock.valid & lock.set === reqSftReg(D2).Addr.set, UIntToOH(lock.way), 0.U)).reduce(_ | _)
+    useWayVec_d2 := lockTable(reqSftReg(D2).hnIdx.pos.set).map(lock => Mux(lock.valid & lock.set === reqSet(reqSftReg(D2).addr), UIntToOH(lock.way), 0.U)).reduce(_ | _)
     val replWay_d2     = repl.get_replace_way(replMes_d2)
     val unuseWay_d2    = PriorityEncoder(~useWayVec_d2.asUInt)
     val selIsUsing_d2  = useWayVec_d2(replWay_d2)
     val hasUnuseWay_d2 = PopCount(useWayVec_d2) < param.ways.U
 
-    addrVec_d3.zip(tagResp_d3).foreach { case (addr, tag) => addr.Addr.cat(io.config.bankId, tag, reqSet_d3, io.dirBank) }
-    reqTag_d3 := req_d3.Addr.tag
-    reqSet_d3 := req_d3.Addr.set
+    addrVec_d3.zip(tagResp_d3).foreach { case (addr, tag) =>
+        if (dirType == "llc") addr.Addr.catDynLLC(io.config.bankId, tag, reqSet_d3, io.dirBank, io.config.l3Sets)
+        else addr.Addr.cat(io.config.bankId, tag, reqSet_d3, io.dirBank)
+    }
+    reqTag_d3 := reqTag(req_d3.addr)
+    reqSet_d3 := reqSet(req_d3.addr)
     HAssert(!(shiftReg.read(D3) ^ tagArray.io.resp.valid))
     HAssert(!(shiftReg.read(D3) ^ metaArray.io.resp.valid))
 
     val useWayVecReg_d3 = RegEnable(useWayVec_d2, shiftReg.req(D2))
-    tagHitVec_d3  := addrVec_d3.map(_.Addr.tag === reqTag_d3)
+    tagHitVec_d3  := tagResp_d3.map(_ === reqTag_d3)
     metaValVec_d3 := metaResp_d3.map(meta => Cat(meta.map(_.isValid)).orR)
     invalidVec_d3 := metaValVec_d3.zip(useWayVecReg_d3.asBools).map { case (m, u) => !m & !u }
     val hasInvalid_d3 = invalidVec_d3.reduce(_ | _)

@@ -38,10 +38,10 @@ class DsIdx(implicit p: Parameters) extends DJBundle {
     val bank = UInt(dsBankBits.W)
     val idx  = UInt(dsIdxBits.W)
 
-    def set(a: UInt, way: UInt): Unit = {
+    def set(a: UInt, way: UInt, cfgSets: UInt): Unit = {
         require(a.getWidth == addrBits)
         require(way.getWidth == llcWayBits)
-        val temp = Cat(getLlcSet(a), way, getDirBank(a))
+        val temp = Cat(getDynLlcSet(a, cfgSets), way, getDirBank(a))
         this.bank := temp(dsBank_ds_hi, dsBank_ds_lo)
         this.idx  := temp(dsIdx_ds_hi, dsIdx_ds_lo)
     }
