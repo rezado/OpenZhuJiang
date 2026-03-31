@@ -3,6 +3,7 @@ package zhujiang.device.home
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
+import chisel3.util.experimental.BoringUtils
 import dongjiang.DongJiang
 import org.chipsalliance.cde.config.Parameters
 import xijiang.router.base.DeviceIcnBundle
@@ -62,8 +63,11 @@ class HomeWrapper(nodes: Seq[Node], nrFriends: Int)(implicit p: Parameters) exte
     cg.io.test_off.foreach(_ := io.dfx.llc.clk_off)
     cg.io.inbound               := inbound
     cg.io.working               := hnx.io.working
+    val pL3Sets                 = WireInit(0.U(64.W))
+    BoringUtils.addSink(pL3Sets, "DSE_L3SETS")
     hnx.io.config.ci            := io.ci
     hnx.io.config.bankId        := io.bank
+    hnx.io.config.l3Sets        := pL3Sets
     hnx.clock                   := cg.io.ock
     hnx.io.flushCache.req.valid := false.B
     hnx.io.flushCache.req.bits  := DontCare
