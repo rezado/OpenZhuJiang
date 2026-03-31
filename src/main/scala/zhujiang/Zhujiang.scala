@@ -2,6 +2,7 @@ package zhujiang
 
 import chisel3._
 import chisel3.experimental.hierarchy.{Definition, Instance}
+import chisel3.util.experimental.BoringUtils
 import org.chipsalliance.cde.config.Parameters
 import xijiang.router.base.IcnBundle
 import xijiang.{NodeType, Ring}
@@ -85,6 +86,9 @@ class Zhujiang(implicit p: Parameters) extends ZJModule with NocIOHelper {
         }
         hfDevSeq(i).io.ci     := ring.io_ci
         hfDevSeq(i).io.bank   := bankId.U
+        val pL3Sets           = WireInit(0.U(64.W))
+        BoringUtils.addSink(pL3Sets, "DSE_L3SETS")
+        hfDevSeq(i).io.l3Sets := pL3Sets
         hfDevSeq(i).reset     := placeResetGen(devName, hfIcnSeq(i)._2.head)
         hfDevSeq(i).clock     := clock
         hfDevSeq(i).io.dfx    := dft
