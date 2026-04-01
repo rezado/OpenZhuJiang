@@ -28,6 +28,7 @@ class HomeWrapper(nodes: Seq[Node], nrFriends: Int)(implicit p: Parameters) exte
         val ci      = Input(UInt(ciIdBits.W))
         val bank    = Input(UInt(nodes.head.bankBits.W))
         val l3Sets  = Input(UInt(64.W))
+        val l3Mshrs = Input(UInt(64.W))
         val dfx     = new ZJDftWires
         val ramctl  = Input(new SramCtrlBundle)
     })
@@ -66,6 +67,7 @@ class HomeWrapper(nodes: Seq[Node], nrFriends: Int)(implicit p: Parameters) exte
     hnx.io.config.ci            := io.ci
     hnx.io.config.bankId        := io.bank
     hnx.io.config.l3Sets        := io.l3Sets
+    hnx.io.config.l3Mshrs       := io.l3Mshrs
     hnx.clock                   := cg.io.ock
     hnx.io.flushCache.req.valid := false.B
     hnx.io.flushCache.req.bits  := DontCare

@@ -89,6 +89,9 @@ class Zhujiang(implicit p: Parameters) extends ZJModule with NocIOHelper {
         val pL3Sets           = WireInit(0.U(64.W))
         BoringUtils.addSink(pL3Sets, "DSE_L3SETS")
         hfDevSeq(i).io.l3Sets := pL3Sets
+        val pL3Mshrs          = WireInit(0.U(64.W))
+        BoringUtils.addSink(pL3Mshrs, "DSE_L3MSHRS")
+        hfDevSeq(i).io.l3Mshrs := pL3Mshrs
         hfDevSeq(i).reset     := placeResetGen(devName, hfIcnSeq(i)._2.head)
         hfDevSeq(i).clock     := clock
         hfDevSeq(i).io.dfx    := dft

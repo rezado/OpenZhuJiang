@@ -47,6 +47,7 @@ class Frontend(isTop: Boolean = false)(implicit p: Parameters) extends DJModule 
         val fastResp = Decoupled(new RespFlit)
 
         val alrUsePoS = Output(UInt(log2Ceil(nrPoS + 1).W))
+        val posMshrFull = Input(Bool())
 
         val working = Output(Bool())
     })
@@ -135,7 +136,7 @@ class Frontend(isTop: Boolean = false)(implicit p: Parameters) extends DJModule 
     hprTaskBuf.io.chiTask_s0.ready := true.B
     block.io.chiTask_s0.valid      := Mux(selectReq, reqTaskBuf.io.chiTask_s0.valid, hprTaskBuf.io.chiTask_s0.valid)
     block.io.chiTask_s0.bits       := Mux(selectReq, reqTaskBuf.io.chiTask_s0.bits, hprTaskBuf.io.chiTask_s0.bits)
-    block.io.posBlock_s1           := posTable.io.block_s1
+    block.io.posBlock_s1           := posTable.io.block_s1 || io.posMshrFull
     block.io.hnIdx_s1              := posTable.io.hnIdx_s1
 
     pipe.io.enq.valid := block.io.task_s1.valid

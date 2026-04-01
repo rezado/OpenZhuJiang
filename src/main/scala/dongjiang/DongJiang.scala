@@ -26,6 +26,7 @@ class DJConfigIO(implicit p: Parameters) extends DJBundle {
     val closeLLC = Input(Bool())
     val bankId   = Input(UInt(bankBits.W))
     val l3Sets   = Input(UInt(64.W))
+    val l3Mshrs  = Input(UInt(64.W))
 }
 
 class DongJiang(lanNode: Node, bbnNode: Option[Node] = None)(implicit p: Parameters) extends DJModule with ImplicitClock with ImplicitReset {
@@ -132,6 +133,8 @@ class DongJiang(lanNode: Node, bbnNode: Option[Node] = None)(implicit p: Paramet
     chiXbar.io.txDat.outVec.zip(icnVec.map(_.tx.data.get)).foreach { case (a, b) => connIcn(b, a) }
 
     val alrUsePos = frontends.map(_.io.alrUsePoS).reduce(_ +& _); dontTouch(alrUsePos)
+    val posMshrFull = alrUsePos >= io.config.l3Mshrs
+    frontends.foreach(_.io.posMshrFull := posMshrFull)
     val posBusy = PriorityMux(
         Seq(
             (alrUsePos < (djparam.nrPoS * 0.5).toInt.U)  -> "b00".U,
